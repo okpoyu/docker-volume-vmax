@@ -1,0 +1,11 @@
+[Unit]
+Description=VMAX Docker Volume Plugin
+Before=docker.service
+After=network.target VMAX_AF.socket
+Requires=your-plugin.socket docker.service
+
+[Service]
+ExecStart=/usr/lib/docker/VMAX_AF
+
+[Install]
+WantedBy=multi-user.target
