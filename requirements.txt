@@ -1,4 +1,3 @@
-pbr
 requests==2.18.4
 six==1.10.0
 WebOb==1.7.3
