@@ -6,7 +6,7 @@ with open("requirements.txt") as requirements:
 setup(name='docker-volume-vmax',
       version='1.0.0',
       description='VMAX Docker Volume Plugin',
-      url='https://github.com/okpoyu/docker-volume-vmax',
+      url='https://github.com/okpoyu/docker-volume-vmax/',
       author='Unana Okpoyo',
       author_email='unana.okpoyo@dell.com',
       license='Apache License, Version 2.0',
@@ -26,5 +26,8 @@ setup(name='docker-volume-vmax',
           'Programming Language :: Python :: 3.0',
           'Topic :: Internet :: WWW/HTTP',
 
-      ]
+      ],
+      data_files=[
+        ('/etc/vmax', ['config/vmax.conf.example']),
+        ('/usr/lib/docker/plugins', ['config/VMAX_AF.json'])]
       )

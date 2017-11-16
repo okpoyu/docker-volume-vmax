@@ -3,26 +3,24 @@ docker-volume-vmax
 ==================
 
 
-.. image:: https://img.shields.io/pypi/v/docker-volume-vmax.svg
-        :target: https://pypi.python.org/pypi/docker-volume-vmax
-
-.. image:: https://img.shields.io/travis/okpoyu/docker-volume-vmax.svg
-        :target: https://travis-ci.org/okpoyu/docker-volume-vmax
-
-.. image:: https://readthedocs.org/projects/docker-volume-vmax/badge/?version=latest
-        :target: https://docker-volume-vmax.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-.. image:: https://pyup.io/repos/github/okpoyu/docker-volume-vmax/shield.svg
-     :target: https://pyup.io/repos/github/okpoyu/docker-volume-vmax/
-     :alt: Updates
-
-
 VMAX Docker Volume Plugin
 
 
-* Free software: Apache Software License 2.0
-* Documentation: https://docker-volume-vmax.readthedocs.io.
+The VMAX Docker Volume Plugin is open source software that provides persistent
+block storage for containerized applications using VMAX Storage.
+
+WHAT'S SUPPORTED
+----------------
+
+This package supports Unisphere version 8.4 onwards, although the calls
+should work on 8.0, 8.1, 8.2 and 8.3 also. We support VMAX3 and VMAX All-Flash
+(All Flash from 8.3 onwards).
+
+INSTALLATION
+------------
+
+First install this package using pip (pip install docker-volume-vmax) or via
+ git clone. Copy the
 
 
 Features

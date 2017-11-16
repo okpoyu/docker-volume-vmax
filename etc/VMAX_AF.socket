@@ -1,8 +1,0 @@
-[Unit]
-Description=VMAX Docker Volume Plugin
-
-[Socket]
-ListenStream=/run/docker/plugins/VMAX_AF.sock
-
-[Install]
-WantedBy=sockets.target

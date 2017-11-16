@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 from flask import Flask
 from flask import request
@@ -21,9 +22,12 @@ logging.register_options(CONF)
 listener = Flask(DOMAIN)
 
 CONF.register_opts(setupcfg.host_opts)
-BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_PATH, 'config/vmax.conf')
-# CONFIG_FILE = '../config/vmax.conf'
+if not os.path.isfile('/etc/vmax/vmax.conf'):
+    LOG.error('Configuration file vmax.conf not found in /etc/vmax '
+              'directory. Please create file using '
+              'vmax.conf.sample...terminating')
+    sys.exit(1)
+CONFIG_FILE = os.path.abspath("/etc/vmax/vmax.conf")
 CONFIG = ['--config-file', CONFIG_FILE]
 
 CONF(CONFIG)

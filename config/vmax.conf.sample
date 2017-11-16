@@ -1,0 +1,29 @@
+[DEFAULT]
+listener_port_number=8000
+enabled_backends = Backend1,Backend2
+debug=True
+log_file = vmax_driver.log
+
+[Backend1]
+volume_backend_name = Backend1
+storage_protocol = iSCSI
+port_groups = [PG1,PG2]
+rest_server_ip = 1.2.3.4
+rest_port_number = 8443
+rest_user_name = test_username
+rest_password = test_password
+array = 000123456789
+service_level = Silver
+workload = DSS
+srp = SRP_1
+
+[Backend2]
+volume_backend_name = Backend2
+storage_protocol = FC
+port_groups = [PG1,PG2]
+rest_server_ip = 1.2.3.4
+rest_port_number = 8443
+rest_user_name = test_username
+rest_password = test_password
+array = 000123456789
+srp = SRP_1
