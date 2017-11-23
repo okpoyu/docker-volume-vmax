@@ -14,6 +14,11 @@ setup(name='docker-volume-vmax',
       scripts=['bin/inq'],
       install_requires=install_requires,
       zip_safe=False,
+      entry_points={
+          'console_scripts': [
+              'vmaxAF = vmaxafdockerplugin.listener_vmax:main',
+          ],
+      },
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Intended Audience :: Developers',
@@ -25,9 +30,8 @@ setup(name='docker-volume-vmax',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3.0',
           'Topic :: Internet :: WWW/HTTP',
-
       ],
       data_files=[
-        ('/etc/vmax', ['config/vmax.conf.example']),
-        ('/usr/lib/docker/plugins', ['config/VMAX_AF.json'])]
+          ('/etc/vmax', ['config/vmax.conf.sample']),
+          ('/etc/systemd/system', ['config/vmaxAF.service'])]
       )

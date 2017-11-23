@@ -1,0 +1,11 @@
+
+[Unit]
+Description = vmaxAF.service
+Before=docker.service
+Requires=docker.service
+
+[Service]
+ExecStart = /usr/local/bin/vmaxAF
+
+[Install]
+WantedBy = multi-user.target

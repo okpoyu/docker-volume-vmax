@@ -16,23 +16,32 @@ from vmaxafdockerplugin.volume_ops import volume_ops
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 DOMAIN = "VMAX_Driver"
+vmax_config_file = "/etc/vmax/vmax.conf"
+vmax_plugin_file = "/usr/lib/docker/plugins/vmaxAF.json"
 
 logging.register_options(CONF)
 
 listener = Flask(DOMAIN)
 
 CONF.register_opts(setupcfg.host_opts)
-if not os.path.isfile('/etc/vmax/vmax.conf'):
+if not os.path.isfile(vmax_config_file):
     LOG.error('Configuration file vmax.conf not found in /etc/vmax '
               'directory. Please create file using '
               'vmax.conf.sample...terminating')
     sys.exit(1)
-CONFIG_FILE = os.path.abspath("/etc/vmax/vmax.conf")
+
+CONFIG_FILE = os.path.abspath(vmax_config_file)
 CONFIG = ['--config-file', CONFIG_FILE]
 
 CONF(CONFIG)
 backend_conf_list = []
 backend_dict = {}
+filename = os.path.abspath(vmax_plugin_file)
+lines = ['{', '\"Name\": \"vmaxAF\",', (
+    '\"Addr\": \"http://127.0.0.1:%s\"' % CONF.listener_port_number), '}']
+with open(filename, 'w+') as f:
+    f.write('\n'.join(lines))
+    f.seek(0)
 
 
 class Configuration(object):
@@ -68,7 +77,7 @@ class Configuration(object):
 
 if CONF.enabled_backends:
     if not (CONF.default_backend and
-                    CONF.default_backend in CONF.enabled_backends):
+            CONF.default_backend in CONF.enabled_backends):
         CONF.set_override(name='default_backend',
                           override=CONF.enabled_backends[0]),
     for backend in filter(None, CONF.enabled_backends):
@@ -407,11 +416,11 @@ def log_input(operation, req):
 
 
 @helpers.log_method_call
-def run():
+def main():
     LOG.info('Starting server...')
     LOG.info('Listening on port: ' + str(CONF.listener_port_number))
     listener.run('0.0.0.0', CONF.listener_port_number, debug=CONF.debug)
 
 
 if __name__ == '__main__':
-    run()
+    main()
