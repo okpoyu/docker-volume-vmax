@@ -3,6 +3,7 @@ listener_port_number=8000
 enabled_backends = Backend1,Backend2
 debug=True
 log_file = vmax_driver.log
+use_journal = True
 
 [Backend1]
 volume_backend_name = Backend1
