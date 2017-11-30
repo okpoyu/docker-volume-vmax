@@ -64,6 +64,7 @@ Creating a VMAX volume
                              -o size=1
 
 There are several optional parameters that can be used during volume creation and are passed in after the -o parameters
+
 - size - specifies the size in GB of the volume to create. Defaults to 1GB if not specified
 - backend-name - specifies the backend name to use in volume creation if multiple backends are available. Defaults to the default backend specified in the configuration file. If no default backend is specified in the configuration file, then the first backend listed is used
 
