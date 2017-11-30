@@ -34,7 +34,7 @@ To install via git, follow the steps below
   cp config/vmax.conf.sample /path/to/vmax.conf
 Edit vmax.conf using the storage configuration of the vmax at your disposal. Finally run the command below to
 ::
-  sudo python listener.py /path/to/vmax.conf
+  sudo python listener_vmax.py /path/to/vmax.conf
 
 FULL INSTALL
 ============
