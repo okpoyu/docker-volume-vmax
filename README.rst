@@ -44,12 +44,18 @@ Full installation requires access to systemd for services. Follow the steps belo
   sudo pip install docker-volume-vmax
   sudo cp /etc/vmax/vmax.conf.sample /etc/vmax/vmax.conf
 
-In /etc/vmax directory, edit vmax.conf using the storage configuration of the vmax. Make systemd aware of vmaxAF.service
+In /etc/vmax directory, edit vmax.conf using the storage configuration of the vmax. 
+
+Make systemd aware of vmaxAF.service
 ::
   sudo systemctl daemon-reload
 Start the vmaxAF service
 ::
   sudo systemctl start vmaxAF.service
+  
+For any change done to vmax.conf in /etc/vmax directory, restart vmaxAF.service for changes to go into effect.
+::
+  sudo systemctl restart vmaxAF.service
 
 USAGE
 -----
