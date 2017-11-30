@@ -25,11 +25,14 @@ logging.register_options(CONF)
 listener = Flask(DOMAIN)
 
 CONF.register_opts(setupcfg.host_opts)
-if not os.path.isfile(vmax_config_file):
-    LOG.error('Configuration file vmax.conf not found in /etc/vmax '
-              'directory. Please create file using '
-              'vmax.conf.sample...terminating')
-    sys.exit(1)
+
+try:
+    vmax_config_file = sys.argv[1]
+except IndexError:
+    if not os.path.isfile(vmax_config_file):
+        LOG.error('Configuration file vmax.conf not found. Please create file '
+                  'using vmax.conf.sample...terminating')
+        sys.exit(1)
 
 CONFIG_FILE = os.path.abspath(vmax_config_file)
 CONFIG = ['--config-file', CONFIG_FILE]
