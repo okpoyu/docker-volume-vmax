@@ -17,7 +17,8 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 DOMAIN = "VMAX_Driver"
 vmax_config_file = "/etc/vmax/vmax.conf"
-vmax_plugin_file = "/usr/lib/docker/plugins/vmaxAF.json"
+vmax_plugin_dir = "/usr/lib/docker/plugins/"
+vmax_plugin_file = vmax_plugin_dir + "vmaxAF.json"
 
 logging.register_options(CONF)
 
@@ -36,6 +37,9 @@ CONFIG = ['--config-file', CONFIG_FILE]
 CONF(CONFIG)
 backend_conf_list = []
 backend_dict = {}
+
+if not os.path.exists(vmax_plugin_dir):
+    os.makedirs(vmax_plugin_dir)
 filename = os.path.abspath(vmax_plugin_file)
 lines = ['{', '\"Name\": \"vmaxAF\",', (
     '\"Addr\": \"http://127.0.0.1:%s\"' % CONF.listener_port_number), '}']
@@ -285,26 +289,32 @@ def mount():
                 break
         target_ip_list = vmax.attach_volume(
             volume_name, volume["volume_id"], group_conf)
-        if not target_ip_list:
+        if not target_ip_list and vmax.protocol == 'iscsi':
             error_msg = "Error mounting volume."
             LOG.error(error_msg)
             return json.dumps({u"Err": error_msg})
         mount_point = CONF.mount_path + volume_name
         volume_id = volume['volume_id']
         symm_id = group_conf.safe_get('array')
-        for target_ip in target_ip_list:
-            LOG.debug('Target ip:%s', target_ip)
-            disk_device = fileutil.get_vmax_device_path(
-                symm_id, volume_id, target_ip)
-            if disk_device:
-                break
-        if disk_device is None:
-            error_msg = "Volume could not be discoved on host"
-            return json.dumps({u"Err": error_msg})
+        if vmax.protocol == 'iscsi':
+            for target_ip in target_ip_list:
+                LOG.debug('Target ip:%s', target_ip)
+                disk_device = fileutil.get_vmax_device_path(
+                    symm_id, volume_id, target_ip)
+                if disk_device:
+                    break
+            if disk_device is None:
+                error_msg = "Volume could not be discoved on host"
+                return json.dumps({u"Err": error_msg})
+        else:
+            disk_device = fileutil.get_vmax_device_path(symm_id, volume_id, "")
         # Check if filesystem exists, create one if not
         if fileutil.has_filesystem(disk_device) is False:
             LOG.debug('File system does not exist on %s', disk_device)
-            fileutil.create_filesystem(disk_device)
+            if vmax.protocol == 'iscsi':
+                fileutil.create_filesystem(disk_device, 'ext4')
+            else:
+                fileutil.create_filesystem(disk_device, 'ext3')
         else:
             msg = ('Found File system on %s', disk_device)
             LOG.debug(msg)

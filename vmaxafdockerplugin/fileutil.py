@@ -7,15 +7,13 @@ import subprocess
 from sh import rm
 from sh import iscsiadm
 import os
+import pyudev
 import six
 from oslo_log import log as logging
 
 from twisted.python.filepath import FilePath
-from subprocess import check_output, STDOUT
 
 LOG = logging.getLogger(__name__)
-
-fs_type = 'ext4'
 
 
 def has_filesystem(path):
@@ -32,7 +30,7 @@ def has_filesystem(path):
     return True
 
 
-def create_filesystem(path):
+def create_filesystem(path, fs_type):
     try:
         mkfs("-t", fs_type, "-F", path)
     except:
@@ -57,7 +55,7 @@ def mkdir_for_mounting(path):
 
 def mount_dir(src, tgt):
     try:
-        mount("-t", fs_type, src, tgt)
+        mount(src, tgt)
     except:
 
         msg = ('Mount exception is : Mount failure')
@@ -106,37 +104,31 @@ def remove_file(tgt):
     return True
 
 
-# VMAX functions
 def get_vmax_device_path(symm_id, device_id, target):
-    #Login to target
     if target:
         _login_to_target(target)
-    _rescan_scsi_bus()
-    #Run inq command to get VMAX devices info
-    #Look for inq command
-    cmd = 'inq'
-    BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-    inq_cmd = os.path.join(BASE_PATH, cmd)
-    output = check_output(["sudo", cmd, "-sym_wwn"], stderr=STDOUT)
-    for line in output.splitlines():
-        fields = unicode(line).split()
-        if len(fields) == 4 and fields[0].startswith('/dev/') \
-                and fields[1] == symm_id and fields[2] == device_id:
-            #device_path = FilePath(fields[0])
-            device_path = fields[0]
-            return device_path
-            break
-    LOG.error("No path found for device %s", device_id)
-    return None
+        _rescan_scsi_bus()
+    encoded_str = ""
+    ret_path = None
+    for c in device_id:
+        encoded_str += c.encode("hex")
+    context = pyudev.Context()
+    for device in context.list_devices(MAJOR='8'):
+        lun_naa = device.get('ID_SERIAL_SHORT')
+        if device.device_type == 'disk' and lun_naa:
+            ret_dev = lun_naa[-10:]
+            ret_symm = lun_naa[8:-12]
+            if str(ret_dev) == encoded_str and ret_symm == symm_id:
+                ret_path = device.device_node
+                break
+    return ret_path
+
 
 def _rescan_scsi_bus():
     """
         Rescan for new  iSCSI devices
 
     """
-    #iscsiadm_command = find_executable('iscsiadm')/usr/bin/iscsiadm
-    iscsiadm_command = '/usr/bin/iscsiadm'
-
     try:
         iscsiadm("-m", "session", "--rescan")
     except:
@@ -144,18 +136,13 @@ def _rescan_scsi_bus():
 
 
 def _login_to_target(target):
-    #iscsiadm_command = '/usr/bin/iscsiadm'
 
     try:
         iscsiadm("-m", "discovery", "-t", "sendtargets", "-p", target)
-        #check_output(["sudo", iscsiadm_command, "-m", "discovery", "-t", "sendtargets", "-p", target], stderr=STDOUT)
     except:
         LOG.error("iscsiadm discovery: error")
     try:
         iscsiadm("-m", "node", "-l")
-        #check_output(["sudo", iscsiadm_command, "-m", "discovery", "-t", "st", "-p", target], stderr=STDOUT)
-        #check_output(["sudo", iscsiadm_command, "-m", "node", "-l"], stderr=STDOUT)
-        #Todo check all the logins
     except:
         LOG.warn("iscsiadm login failure, initiator may be already logged in" )
 

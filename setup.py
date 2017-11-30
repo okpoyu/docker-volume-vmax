@@ -11,12 +11,11 @@ setup(name='docker-volume-vmax',
       author_email='unana.okpoyo@dell.com',
       license='Apache License, Version 2.0',
       packages=find_packages(exclude=['docs', 'tests*']),
-      scripts=['bin/inq'],
       install_requires=install_requires,
       zip_safe=False,
       entry_points={
           'console_scripts': [
-              'vmaxAF = vmaxafdockerplugin.listener_vmax:main',
+              'vmaxAF = listener_vmax:main',
           ],
       },
       classifiers=[
