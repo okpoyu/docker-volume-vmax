@@ -15,7 +15,7 @@ setup(name='docker-volume-vmax',
       zip_safe=False,
       entry_points={
           'console_scripts': [
-              'vmaxAF = listener_vmax:main',
+              'vmaxAF = vmaxafdockerplugin.listener_vmax:main',
           ],
       },
       classifiers=[

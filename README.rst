@@ -30,11 +30,11 @@ To install via git, follow the steps below
 ::
   git clone https://github.com/okpoyu/docker-volume-vmax.git
   cd docker-volume-vmax
-  sudo pip install -r requirements.txt
+  sudo pip install --editable .
   cp config/vmax.conf.sample /path/to/vmax.conf
 Edit vmax.conf using the storage configuration of the vmax at your disposal. Finally run the command below to
 ::
-  sudo python listener_vmax.py /path/to/vmax.conf
+  sudo vmaxAF /path/to/vmax.conf
 
 FULL INSTALL
 ============
