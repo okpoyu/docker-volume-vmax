@@ -192,6 +192,8 @@ def create():
                                     'valid': CONF.enabled_backends, })
                             LOG.error(msg)
                             return json.dumps({u"Err": msg})
+        else:
+            volume_opts = {}
         if 'size' not in volume_opts:
             LOG.debug(
                 "Volume Size NOT specified, using default")
