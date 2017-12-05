@@ -294,14 +294,14 @@ def mount():
                 break
         target_ip_list = vmax.attach_volume(
             volume_name, volume["volume_id"], group_conf)
-        if not target_ip_list and vmax.protocol == 'iscsi':
+        if not target_ip_list and vmax.protocol.lower() == 'iscsi':
             error_msg = "Error mounting volume."
             LOG.error(error_msg)
             return json.dumps({u"Err": error_msg})
         mount_point = CONF.mount_path + volume_name
         volume_id = volume['volume_id']
         symm_id = group_conf.safe_get('array')
-        if vmax.protocol == 'iscsi':
+        if vmax.protocol.lower() == 'iscsi':
             for target_ip in target_ip_list:
                 LOG.debug('Target ip:%s', target_ip)
                 disk_device = fileutil.get_vmax_device_path(
@@ -316,7 +316,7 @@ def mount():
         # Check if filesystem exists, create one if not
         if fileutil.has_filesystem(disk_device) is False:
             LOG.debug('File system does not exist on %s', disk_device)
-            if vmax.protocol == 'iscsi':
+            if vmax.protocol.lower() == 'iscsi':
                 fileutil.create_filesystem(disk_device, 'ext4')
             else:
                 fileutil.create_filesystem(disk_device, 'ext3')

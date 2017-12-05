@@ -168,7 +168,7 @@ class VmaxAf:
             masking_view_dict[WORKLOAD])
         error_message = self.get_or_create_masking_view(
             masking_view_dict, default_sg_name)
-        if not error_message and self.protocol == ISCSI:
+        if not error_message and self.protocol.lower() == ISCSI:
             target_ip_list = self.find_ips(masking_view_dict[PORTGROUPNAME])
         return target_ip_list
 
