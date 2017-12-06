@@ -20,8 +20,12 @@ should work on 8.0, 8.1, 8.2 and 8.3 also. We support VMAX3 and VMAX All-Flash
 
 INSTALLATION
 ------------
+Prior to installing docker-volume-vmax, ensure docker is installed on the host
+being used. Installation instructions can be found at
+https://docs.docker.com/engine/installation/.
 
-docker-volume-vmax can be installed and used in 2 ways depending on the implemetation; git install and full install.
+docker-volume-vmax can be installed and used in 2 ways depending on the
+implemetation; git install and full install.
 
 GIT INSTALL
 ===========
@@ -32,19 +36,24 @@ To install via git, follow the steps below
   cd docker-volume-vmax
   sudo pip install --editable .
   cp config/vmax.conf.sample /path/to/vmax.conf
-Edit vmax.conf using the storage configuration of the vmax at your disposal. Finally run the command below to
+Edit vmax.conf using the storage configuration of the vmax at your disposal.
+See [full configuration options](/config/README.md) for details of
+options supported in the configuration file
+Finally run the command below
 ::
   sudo vmaxAF /path/to/vmax.conf
 
 FULL INSTALL
 ============
 
-Full installation requires access to systemd for services. Follow the steps below
+Full installation requires access to systemd for services. Follow the steps
+below
 ::
   sudo pip install docker-volume-vmax
   sudo cp /etc/vmax/vmax.conf.sample /etc/vmax/vmax.conf
 
-In /etc/vmax directory, edit vmax.conf using the storage configuration of the vmax. 
+In /etc/vmax directory, edit vmax.conf using the storage configuration of the
+vmax.
 
 Make systemd aware of vmaxAF.service
 ::
@@ -53,14 +62,16 @@ Start the vmaxAF service
 ::
   sudo systemctl start vmaxAF.service
   
-For any change done to vmax.conf in /etc/vmax directory, restart vmaxAF.service for changes to go into effect.
+For any change done to vmax.conf in /etc/vmax directory, restart vmaxAF.service
+for changes to go into effect.
 ::
   sudo systemctl restart vmaxAF.service
 
 USAGE
 -----
 
-The following are the currently supported actions that can be taken using the VMAX Docker volume plugin
+The following are the currently supported actions that can be taken using the
+VMAX Docker volume plugin
 
 Creating a VMAX volume
 ======================
@@ -71,10 +82,15 @@ Creating a VMAX volume
                              --name <vol_name> \
                              -o size=1
 
-There are several optional parameters that can be used during volume creation and are passed in after the -o parameters
+There are several optional parameters that can be used during volume creation
+and are passed in after the -o parameters
 
-- size - specifies the size in GB of the volume to create. Defaults to 1GB if not specified
-- backend-name - specifies the backend name to use in volume creation if multiple backends are available. Defaults to the default backend specified in the configuration file. If no default backend is specified in the configuration file, then the first backend listed is used
+- size - specifies the size in GB of the volume to create. Defaults to 1GB if
+  not specified
+- backend-name - specifies the backend name to use in volume creation if
+  multiple backends are available. Defaults to the default backend specified
+  in the configuration file. If no default backend is specified in the
+  configuration file, then the first backend listed is used
 
 Mounting a volume
 ======================
