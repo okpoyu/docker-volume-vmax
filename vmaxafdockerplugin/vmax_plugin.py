@@ -882,7 +882,7 @@ class VmaxAf:
         if host is not None:
             protocol = self.get_short_protocol_type(self.protocol)
 
-            default_ig_name = ("OS-%(shortHostName)s-%(protocol)s-IG"
+            default_ig_name = ("DK-%(shortHostName)s-%(protocol)s-IG"
                                % {'shortHostName': host,
                                   'protocol': protocol})
 
@@ -976,18 +976,18 @@ class VmaxAf:
         if slo:
             slo_wl_combo = self.truncate_string(slo + workload, 10)
             child_sg_name = (
-                "OS-%(shortHostName)s-%(srpName)s-%(combo)s-%(pg)s"
+                "DK-%(shortHostName)s-%(srpName)s-%(combo)s-%(pg)s"
                 % {'shortHostName': short_host_name,
                    'srpName': unique_name,
                    'combo': slo_wl_combo,
                    'pg': short_pg_name})
         else:
             child_sg_name = (
-                "OS-%(shortHostName)s-No_SLO-%(pg)s"
+                "DK-%(shortHostName)s-No_SLO-%(pg)s"
                 % {'shortHostName': short_host_name,
                    'pg': short_pg_name})
         mv_prefix = (
-            "OS-%(shortHostName)s-%(protocol)s-%(pg)s"
+            "DK-%(shortHostName)s-%(protocol)s-%(pg)s"
             % {'shortHostName': short_host_name,
                'protocol': protocol, 'pg': short_pg_name})
 
@@ -999,7 +999,7 @@ class VmaxAf:
                                              % {'prefix': mv_prefix})
 
         masking_view_dict[IG_NAME] = (
-            ("OS-%(shortHostName)s-%(protocol)s-IG"
+            ("DK-%(shortHostName)s-%(protocol)s-IG"
              % {'shortHostName': short_host_name,
                 'protocol': protocol}))
         masking_view_dict[CONNECTOR] = connector

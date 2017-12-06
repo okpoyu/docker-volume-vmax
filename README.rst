@@ -37,8 +37,9 @@ To install via git, follow the steps below
   sudo pip install --editable .
   cp config/vmax.conf.sample /path/to/vmax.conf
 Edit vmax.conf using the storage configuration of the vmax at your disposal.
-See [full configuration options](/config/README.md) for details of
-options supported in the configuration file
+See `full configuration options`_ for details of options supported in the
+configuration file.
+
 Finally run the command below
 ::
   sudo vmaxAF /path/to/vmax.conf
@@ -53,7 +54,8 @@ below
   sudo cp /etc/vmax/vmax.conf.sample /etc/vmax/vmax.conf
 
 In /etc/vmax directory, edit vmax.conf using the storage configuration of the
-vmax.
+vmax. See `full configuration options`_ for details of options supported in the
+configuration file.
 
 Make systemd aware of vmaxAF.service
 ::
@@ -61,7 +63,7 @@ Make systemd aware of vmaxAF.service
 Start the vmaxAF service
 ::
   sudo systemctl start vmaxAF.service
-  
+
 For any change done to vmax.conf in /etc/vmax directory, restart vmaxAF.service
 for changes to go into effect.
 ::
@@ -136,4 +138,4 @@ This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypack
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
-
+.. _`full configuration options`: config/README.md

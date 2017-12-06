@@ -195,7 +195,7 @@ class RestFunctions:
     def find_volume_device_id(self, volume_name):
         """Given a volume identifier, find the corresponding device_id.
 
-        :param volume_name: the volume name (OS-<UUID>)
+        :param volume_name: the volume name (DK-<UUID>)
         :returns: device_id
         """
         device_id = None
@@ -486,7 +486,7 @@ class RestFunctions:
         :returns: storage_group_name
         """
         if slo and workload:
-            prefix = ("OS-%(srpName)s-%(slo)s-%(workload)s"
+            prefix = ("DK-%(srpName)s-%(slo)s-%(workload)s"
                       % {'srpName': srp_name, 'slo': slo,
                          'workload': workload})
 
@@ -494,7 +494,7 @@ class RestFunctions:
                 prefix += "-CD"
 
         else:
-            prefix = "OS-no_SLO"
+            prefix = "DK-no_SLO"
         if is_re:
             prefix += "-RE"
 

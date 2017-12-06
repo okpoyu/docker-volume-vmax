@@ -21,7 +21,8 @@ host_opts = [
 volume_opts = [
     cfg.StrOpt('volume_backend_name',
                required=True,
-               help='Backend protocol to target when creating volume types'),
+               help='The backend name for the volume. Should correspond to '
+                    'the name in enabled backends'),
     cfg.StrOpt('storage_protocol',
                default='iSCSI',
                help='Backend protocol to target when creating volume types'),
