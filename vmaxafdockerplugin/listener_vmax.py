@@ -138,7 +138,7 @@ def get():
         LOG.debug('Get Response = {0}'.format(response))
     else:
         err = ("Get volume %s failed, unable to find volume", volume_name)
-        LOG.error(err)
+        LOG.debug(err)
         response = json.dumps({u"Err": err})
     return response
 
@@ -294,12 +294,14 @@ def mount():
                 break
         target_ip_list = vmax.attach_volume(
             volume_name, volume["volume_id"], group_conf)
+        volume_id = volume['volume_id']
         if not target_ip_list and vmax.protocol.lower() == 'iscsi':
             error_msg = "Error mounting volume."
+            vmax.detach_volume(volume_name, volume_id, group_conf)
             LOG.error(error_msg)
             return json.dumps({u"Err": error_msg})
         mount_point = CONF.mount_path + volume_name
-        volume_id = volume['volume_id']
+
         symm_id = group_conf.safe_get('array')
         if vmax.protocol.lower() == 'iscsi':
             for target_ip in target_ip_list:
@@ -317,16 +319,25 @@ def mount():
         if fileutil.has_filesystem(disk_device) is False:
             LOG.debug('File system does not exist on %s', disk_device)
             if vmax.protocol.lower() == 'iscsi':
-                fileutil.create_filesystem(disk_device, 'ext4')
+                file_exist = fileutil.create_filesystem(disk_device, 'ext4')
             else:
-                fileutil.create_filesystem(disk_device, 'ext3')
+                file_exist = fileutil.create_filesystem(disk_device, 'ext3')
         else:
             msg = ('Found File system on %s', disk_device)
             LOG.debug(msg)
+            file_exist = True
+        if not file_exist:
+            vmax.detach_volume(volume_name, volume_id, group_conf)
+            error_msg = (
+                    "Filesystem %s could not be created on host" % disk_device)
+            return json.dumps({u"Err": error_msg})
         # Create mountpoint
         fileutil.mkdir_for_mounting(mount_point)
         # Mount
-        fileutil.mount_dir(disk_device, mount_point)
+        try:
+            fileutil.mount_dir(disk_device, mount_point)
+        except:
+            vmax.detach_volume(volume_name, volume_id, group_conf)
         # Update record
         volume['formatted'] = True
         volume['mounted'][target_host_name] = {
@@ -335,7 +346,7 @@ def mount():
         mount_path = volume_ops.get_mount_path(volume_name, target_host_name)
         LOG.info("Volume Mount successful. Mount Path from data file %s",
                  mount_path)
-    return json.dumps({u"Err": '', u"Mountpoint": mount_path})
+        return json.dumps({u"Err": '', u"Mountpoint": mount_path})
 
 
 @listener.route('/VolumeDriver.Unmount', methods=['POST'])
@@ -375,6 +386,8 @@ def unmount():
                     group_conf = backend_conf
                     break
             vmax.detach_volume(volume_name, volume["volume_id"], group_conf)
+            if vmax.protocol.lower() != 'iscsi':
+                fileutil.rescan_fc()
             # Udate record in data.json
             del volume['mounted'][target_host_name]
             volume_ops.set_volume(volume_name, volume)

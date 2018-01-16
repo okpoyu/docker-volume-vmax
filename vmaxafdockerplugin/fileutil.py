@@ -1,5 +1,5 @@
 from sh import blkid
-from sh import mkfs
+from sh import mke2fs
 from sh import mkdir
 from sh import mount
 from sh import umount
@@ -32,9 +32,10 @@ def has_filesystem(path):
 
 def create_filesystem(path, fs_type):
     try:
-        mkfs("-t", fs_type, "-F", path)
+        mke2fs("-t", fs_type, path)
     except:
         LOG.error("Create file system failed")
+        return False
     return True
 
 
@@ -56,9 +57,9 @@ def mkdir_for_mounting(path):
 def mount_dir(src, tgt):
     try:
         mount(src, tgt)
-    except:
-
-        msg = ('Mount exception is : Mount failure')
+    except Exception as ex:
+        msg = 'exception is : %s', six.text_type(ex)
+        #msg = 'Mount exception is : Mount failure'
         LOG.error(msg)
 
     return True
@@ -105,22 +106,35 @@ def remove_file(tgt):
 
 
 def get_vmax_device_path(symm_id, device_id, target):
+    ret_path = None
     if target:
         _login_to_target(target)
         _rescan_scsi_bus()
+    else:
+        # FC
+        rescan_fc()
     encoded_str = ""
-    ret_path = None
     for c in device_id:
         encoded_str += c.encode("hex")
     context = pyudev.Context()
-    for device in context.list_devices(MAJOR='8'):
-        lun_naa = device.get('ID_SERIAL_SHORT')
-        if device.device_type == 'disk' and lun_naa:
-            ret_dev = lun_naa[-10:]
-            ret_symm = lun_naa[8:-12]
-            if str(ret_dev) == encoded_str and ret_symm == symm_id:
-                ret_path = device.device_node
-                break
+    # Get multipath device_path if it exist
+    for device in context.list_devices(subsystem='block', DM_TYPE='scsi'):
+        lun_naa = device.get('DM_NAME')
+        ret_dev = lun_naa[-10:]
+        ret_symm = lun_naa[9:-12]
+        if str(ret_dev) == encoded_str and ret_symm == symm_id:
+            ret_path = device.device_node
+            break
+    # Get device path for single path
+    if ret_path is None:
+        for device in context.list_devices(MAJOR='8'):
+            lun_naa = device.get('ID_SERIAL_SHORT')
+            if device.device_type == 'disk' and lun_naa:
+                ret_dev = lun_naa[-10:]
+                ret_symm = lun_naa[8:-12]
+                if str(ret_dev) == encoded_str and ret_symm == symm_id:
+                    ret_path = device.device_node
+                    break
     return ret_path
 
 
@@ -133,6 +147,17 @@ def _rescan_scsi_bus():
         iscsiadm("-m", "session", "--rescan")
     except:
         LOG.error("iscsiadm rescan: error")
+
+
+def rescan_fc():
+    scanned = True
+    try:
+        subprocess.call(["sudo", "rescan-scsi-bus", "--remove", "--issue-lip"])
+    except subprocess.CalledProcessError as e:
+        LOG.error("Unable to run rescan-scsi-bus. Make sure sg3_utils "
+                  "is installed")
+        scanned = False
+    return scanned
 
 
 def _login_to_target(target):

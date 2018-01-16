@@ -21,6 +21,7 @@ class VolumeMetaData(object):
     """
     BASE_PATH = os.path.dirname(os.path.abspath(__file__))
     #DATA_FILE = os.path.join(BASE_PATH, '..', 'data', 'data.json')
+    #DATA_FILE = os.path.join(BASE_PATH, 'volumes/' 'volumes_data.json')
     DATA_FILE = os.path.join(BASE_PATH, 'volumes_data.json')
 
     def __init__(self, data_file=DATA_FILE):
