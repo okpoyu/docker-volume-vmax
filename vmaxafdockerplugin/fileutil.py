@@ -132,7 +132,7 @@ def get_vmax_device_path(symm_id, device_id, target):
             if device.device_type == 'disk' and lun_naa:
                 ret_dev = lun_naa[-10:]
                 ret_symm = lun_naa[8:-12]
-                if str(ret_dev) == encoded_str and ret_symm == symm_id:
+                if str(ret_dev) == encoded_str and str(ret_symm) == symm_id:
                     ret_path = device.device_node
                     break
     return ret_path
@@ -166,10 +166,11 @@ def _login_to_target(target):
         iscsiadm("-m", "discovery", "-t", "sendtargets", "-p", target)
     except:
         LOG.error("iscsiadm discovery: error")
+    target += ':3260'
     try:
-        iscsiadm("-m", "node", "-l")
+        iscsiadm("-m", "node", "-p", target, "-l")
     except:
-        LOG.warn("iscsiadm login failure, initiator may be already logged in" )
+        LOG.warn("iscsiadm login failure, initiator may be already logged in")
 
 
 def get_initiator():

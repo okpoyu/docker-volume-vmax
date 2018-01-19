@@ -62,7 +62,6 @@ class VmaxAf:
         :param volume_name:
         :param volume_id:
         """
-        is_volume_deleted = False
         volume_info = self.REST.get_volume(volume_id)
         if volume_info is None:
             msg = ('VMAX device ID for volume ' +
@@ -84,16 +83,16 @@ class VmaxAf:
         if volume_info['num_of_storage_groups'] == 0:
             try:
                 self.REST.deallocate_volume(volume_id)
+                self.REST.rename_volume(volume_id, None)
             except Exception as e:
                 LOG.debug('Deallocate volume failed with %(e)s.'
                           'Attempting delete.', {'e': e})
-            self.REST.delete_volume(volume_id)
-        # Confirm volume has been deleted
-        try:
-            self.REST.get_volume(volume_id)
-        except pyU4V_exception.VolumeBackendAPIException:
-            is_volume_deleted = True
-        return is_volume_deleted
+                try:
+                    self.REST.delete_volume(volume_id)
+                except Exception:
+                    pass
+
+        return True
 
     def find_ips(self, port_group):
         ips = []
