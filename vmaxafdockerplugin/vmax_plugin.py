@@ -48,9 +48,9 @@ class VmaxAf:
             self.protocol = ISCSI
         else:
             self.protocol = protocol
-        self.REST = PyU4V.RestFunctions(
+        self.CONN = PyU4V.U4VConn(
             username=user, password=password, server_ip=u4v_ip, port=port,
-            array_id=array, verify=False)
+            array_id=array, verify=False).provisioning
 
     def remove_volume(self, volume_name, volume_id):
         """
@@ -62,7 +62,11 @@ class VmaxAf:
         :param volume_name:
         :param volume_id:
         """
-        volume_info = self.REST.get_volume(volume_id)
+        try:
+            volume_info = self.CONN.get_volume(volume_id)
+        except pyU4V_exception.VolumeBackendAPIException:
+            # try again
+            volume_info = self.CONN.get_volume(volume_id)
         if volume_info is None:
             msg = ('VMAX device ID for volume ' +
                    volume_name + ' Could not be found')
@@ -76,19 +80,23 @@ class VmaxAf:
                 LOG.debug(
                     "volume %s belongs to storage group %s "
                     "removing from SG", volume_id, sg_id)
-                self.REST.remove_vol_from_storagegroup(sg_id, volume_id)
+                self.CONN.remove_vol_from_storagegroup(sg_id, volume_id)
 
         LOG.info("Deleting volume  with volume_id: %s", volume_id)
-        volume_info = self.REST.get_volume(volume_id)
+        try:
+            volume_info = self.CONN.get_volume(volume_id)
+        except pyU4V_exception.VolumeBackendAPIException:
+            # try again
+            volume_info = self.CONN.get_volume(volume_id)
         if volume_info['num_of_storage_groups'] == 0:
             try:
-                self.REST.deallocate_volume(volume_id)
-                self.REST.rename_volume(volume_id, None)
+                self.CONN.deallocate_volume(volume_id)
+                self.CONN.rename_volume(volume_id, None)
             except Exception as e:
                 LOG.debug('Deallocate volume failed with %(e)s.'
                           'Attempting delete.', {'e': e})
                 try:
-                    self.REST.delete_volume(volume_id)
+                    self.CONN.delete_volume(volume_id)
                 except Exception:
                     pass
 
@@ -96,7 +104,7 @@ class VmaxAf:
 
     def find_ips(self, port_group):
         ips = []
-        ports = self.REST.get_ports_from_pg(port_group)
+        ports = self.CONN.get_ports_from_pg(port_group)
         for port in ports:
             LOG.debug(port)
             ip = self._get_ip(port)
@@ -111,7 +119,7 @@ class VmaxAf:
         """
         ip_list = []
 
-        ip_addresses, iqn = self.REST.get_iscsi_ip_address_and_iqn(port)
+        ip_addresses, iqn = self.CONN.get_iscsi_ip_address_and_iqn(port)
         if ip_addresses:
             for ip in ip_addresses:
                 ip_list.append(ip)
@@ -146,22 +154,25 @@ class VmaxAf:
         storagegroup_name = self.get_or_create_default_storage_group(
             volume_opts[SRP], volume_opts[SLO], volume_opts[WORKLOAD])
         try:
-            _, _, device_id = self.REST.create_volume_from_sg_return_dev_id(
+            device_id = self.CONN.create_volume_from_sg_return_dev_id(
                 volume_name, storagegroup_name, volume_opts['size'])
         except Exception:
             # if the volume create fails, check if the
             # storage group needs to be cleaned up
             exception_message = ("Create volume failed. Checking if "
                                  "storage group cleanup necessary...")
-            num_vol_in_sg = self.REST.get_num_vols_in_sg(storagegroup_name)
+            num_vol_in_sg = self.CONN.get_num_vols_in_sg(storagegroup_name)
             if num_vol_in_sg == 0:
                 LOG.debug("There are no volumes in the storage group "
                           "%(sg_id)s. Deleting storage group.",
                           {'sg_id': storagegroup_name})
-                self.REST.delete_sg(storagegroup_name)
+                self.CONN.delete_storagegroup(storagegroup_name)
             raise exception.VMAXPluginException(exception_message)
-
-        volume_info = self.REST.get_volume(device_id)
+        try:
+            volume_info = self.CONN.get_volume(device_id)
+        except pyU4V_exception.VolumeBackendAPIException:
+            # try again
+            volume_info = self.CONN.get_volume(device_id)
         LOG.debug("Volume info is %s" % volume_info)
 
         return volume_info
@@ -169,8 +180,8 @@ class VmaxAf:
     def verify_slo_workload(self, slo, workload):
         is_valid_slo = False
         is_valid_workload = False
-        valid_workloads = self.REST.get_workload_settings(self.array)
-        valid_slos = self.REST.get_slo_list()
+        valid_workloads = self.CONN.get_workload_settings()
+        valid_slos = self.CONN.get_slo_list()
 
         if (workload in valid_workloads) or (workload is None):
             is_valid_workload = True
@@ -196,12 +207,12 @@ class VmaxAf:
         storagegroup, storagegroup_name = (
             self.get_vmax_default_storage_group(srp, slo, workload))
         if storagegroup is None:
-            self.REST.create_storage_group(
+            self.CONN.create_storage_group(
                 srp, storagegroup_name, slo, workload)
         else:
             # Check that SG is not part of a masking view
             LOG.debug("Using existing default storage group")
-            masking_views = self.REST.get_masking_views_from_storage_group(
+            masking_views = self.CONN.get_masking_views_from_storage_group(
                 storagegroup_name)
             if masking_views:
                 exception_message = (
@@ -229,7 +240,10 @@ class VmaxAf:
             prefix = "DK-no_SLO"
 
         storage_group_name = ("%(prefix)s-SG" % {'prefix': prefix})
-        storagegroup = self.REST.get_storage_group(storage_group_name)
+        try:
+            storagegroup = self.CONN.get_storage_group(storage_group_name)
+        except pyU4V_exception.ResourceNotFoundException:
+            storagegroup = None
         return storagegroup, storage_group_name
 
     def attach_volume(self, volume_name, device_id, group_conf):
@@ -253,8 +267,11 @@ class VmaxAf:
         :returns: error message
         """
         masking_view_name = masking_view_dict[MV_NAME]
-
-        masking_view_details, _ = self.REST.get_masking_view(masking_view_name)
+        try:
+            masking_view_details = self.CONN.get_masking_view(
+                masking_view_name)
+        except pyU4V_exception.ResourceNotFoundException:
+            masking_view_details = None
         if not masking_view_details:
             error_message = self._create_new_masking_view(
                 masking_view_dict, masking_view_name, default_sg_name)
@@ -294,7 +311,7 @@ class VmaxAf:
         if error_message:
             return error_message
 
-        portgroup = self.REST.get_portgroups(portgroup_id=port_group_name)
+        portgroup = self.CONN.get_portgroup(port_group_name)
         if portgroup is None:
             msg = ("Cannot get port group: %(portgroup)s from the array "
                    "%(array)s. Portgroups must be pre-configured - please "
@@ -325,7 +342,7 @@ class VmaxAf:
         if error_message:
             return error_message
         try:
-            self.REST.create_masking_view_existing_components(
+            self.CONN.create_masking_view_existing_components(
                 port_group_name, masking_view_name, storagegroup_name,
                 host_name=init_group_name)
         except Exception as e:
@@ -348,7 +365,7 @@ class VmaxAf:
         # If you cannot find an initiator group that matches the connector
         # info, create a new initiator group.
         if found_init_group is None:
-            self.REST.create_host(
+            self.CONN.create_host(
                 init_group_name, initiator_list=initiator_names, async=True)
             LOG.debug("Created new initiator group name: %(init_group_name)s.",
                       {'init_group_name': init_group_name})
@@ -409,11 +426,11 @@ class VmaxAf:
         :returns: initiator group name -- string or None
         """
         ig_name = None
-        init_list = self.REST.get_in_use_initiator_list_from_array()
+        init_list = self.CONN.get_in_use_initiator_list_from_array()
         for initiator in initiator_names:
             found_init = [init for init in init_list if initiator in init]
             if found_init:
-                ig_name = self.REST.get_initiator_group_from_initiator(
+                ig_name = self.CONN.get_initiator_group_from_initiator(
                     found_init[0])
                 break
         return ig_name
@@ -430,28 +447,28 @@ class VmaxAf:
         :returns: msg
         """
         msg = None
-        check_vol = self.REST.is_volume_in_storagegroup(
+        check_vol = self.CONN.is_volume_in_storagegroup(
             device_id, default_sg_name)
         if check_vol:
-            num_vol_in_sg = self.REST.get_num_vols_in_sg(default_sg_name)
+            num_vol_in_sg = self.CONN.get_num_vols_in_sg(default_sg_name)
             LOG.debug("There are %(num_vol)d volumes in the "
                       "storage group %(sg_name)s.",
                       {'num_vol': num_vol_in_sg,
                        'sg_name': default_sg_name})
-            _, status_code = self.REST.move_volume_between_storage_groups(
+            self.CONN.move_volumes_between_storage_groups(
                 device_id, default_sg_name, dest_storagegroup)
 
             if num_vol_in_sg == 1:
-                num_vol = self.REST.get_num_vols_in_sg(default_sg_name)
+                num_vol = self.CONN.get_num_vols_in_sg(default_sg_name)
                 count = 0
                 while num_vol == 1 and count < 6:
                     time.sleep(5)
-                    num_vol = self.REST.get_num_vols_in_sg(default_sg_name)
+                    num_vol = self.CONN.get_num_vols_in_sg(default_sg_name)
                     count += 1
 
                 if num_vol < 1:
                     # Last volume in the storage group - delete sg.
-                    self.REST.delete_sg(default_sg_name)
+                    self.CONN.delete_storagegroup(default_sg_name)
 
         else:
             LOG.warning(
@@ -474,14 +491,14 @@ class VmaxAf:
         :returns: msg
         """
         msg = None
-        if self.REST.is_volume_in_storagegroup(device_id, storagegroup_name):
+        if self.CONN.is_volume_in_storagegroup(device_id, storagegroup_name):
             LOG.debug("Volume: %(volume_name)s is already part "
                       "of storage group %(sg_name)s.",
                       {'volume_name': volume_name,
                        'sg_name': storagegroup_name})
         else:
             try:
-                self.REST.add_existing_vol_to_sg(
+                self.CONN.add_existing_vol_to_sg(
                     storagegroup_name, device_id, async=True)
             except Exception as e:
                 msg = ("Exception adding volume %(vol)s to %(sg)s. "
@@ -492,11 +509,11 @@ class VmaxAf:
         return msg
 
     def _get_or_create_storage_group(
-            self, masking_view_dict, storagegroup_name, parent=False):
+            self, masking_view_dict, storage_group_name, parent=False):
         """Get or create a storage group for a masking view.
 
         :param masking_view_dict: the masking view dict
-        :param storagegroup_name: the storage group name
+        :param storage_group_name: the storage group name
         :param parent: flag to indicate if this a parent storage group
         :returns: msg -- string or None
         """
@@ -507,15 +524,18 @@ class VmaxAf:
             slo = None
         else:
             slo = masking_view_dict[SLO]
-        storagegroup = self.REST.get_storage_group(storagegroup_name)
+        try:
+            storagegroup = self.CONN.get_storage_group(storage_group_name)
+        except pyU4V_exception.ResourceNotFoundException:
+            storagegroup = None
         if storagegroup is None:
-            storagegroup = self.REST.create_storage_group(
-                srp, storagegroup_name, slo, workload)
+            storagegroup = self.CONN.create_storage_group(
+                srp, storage_group_name, slo, workload)
 
         if storagegroup is None:
             msg = ("Cannot get or create a storage group: "
                    "%(storagegroup_name)s for volume %(volume_name)s."
-                   % {'storagegroup_name': storagegroup_name,
+                   % {'storagegroup_name': storage_group_name,
                       'volume_name': masking_view_dict[VOL_NAME]})
             LOG.error(msg)
 
@@ -534,9 +554,9 @@ class VmaxAf:
         storage_group_name, msg = self._check_existing_storage_group(
             masking_view_name, default_sg_name, masking_view_dict)
         if not msg:
-            portgroup_name = self.REST.get_element_from_masking_view(
+            portgroup_name = self.CONN.get_element_from_masking_view(
                 masking_view_name, portgroup=True)
-            portgroup = self.REST.get_portgroups(portgroup_name)
+            portgroup = self.CONN.get_portgroup(portgroup_name)
             if portgroup is None:
                 msg = ("Cannot get port group: %(portgroup)s from the array "
                        "%(array)s. Portgroups must be pre-configured - please "
@@ -544,7 +564,7 @@ class VmaxAf:
                        % {'portgroup': portgroup_name, 'array': self.array})
                 LOG.error(msg)
             else:
-                ig_from_mv = self.REST.get_element_from_masking_view(
+                ig_from_mv = self.CONN.get_element_from_masking_view(
                     masking_view_name, host=True)
                 if ig_from_mv is None:
                     msg = ("Cannot get initiator group: %(ig_name)s "
@@ -570,10 +590,10 @@ class VmaxAf:
         msg = None
         child_sg_name = masking_view_dict[SG_NAME]
         parent_sg_name = masking_view_dict[PARENT_SG_NAME]
-        sg_from_mv = self.REST.get_element_from_masking_view(
+        sg_from_mv = self.CONN.get_element_from_masking_view(
             masking_view_name, storagegroup=True)
 
-        storagegroup = self.REST.get_storage_group(sg_from_mv)
+        storagegroup = self.CONN.get_storage_group(sg_from_mv)
 
         if not storagegroup:
             msg = ("Cannot get storage group: %(sg_from_mv)s "
@@ -582,9 +602,9 @@ class VmaxAf:
                       'masking_view': masking_view_name})
             LOG.error(msg)
         else:
-            check_child = self.REST.is_child_sg_in_parent_sg(
+            check_child = self.CONN.is_child_sg_in_parent_sg(
                 child_sg_name, parent_sg_name)
-            child_sg = self.REST.get_storage_group(child_sg_name)
+            child_sg = self.CONN.get_storage_group(child_sg_name)
             # Ensure the child sg can be retrieved
             if check_child and not child_sg:
                 msg = ("Cannot get child storage group: %(sg_name)s "
@@ -619,7 +639,7 @@ class VmaxAf:
         :returns: error_message or None
         """
         msg = None
-        if self.REST.is_child_sg_in_parent_sg(
+        if self.CONN.is_child_sg_in_parent_sg(
                 child_sg_name, parent_sg_name):
             LOG.debug("Child sg: %(child_sg)s is already part "
                       "of parent storage group %(parent_sg)s.",
@@ -627,7 +647,7 @@ class VmaxAf:
                        'parent_sg': parent_sg_name})
         else:
             try:
-                self.REST.add_child_sg_to_parent_sg(
+                self.CONN.add_child_sg_to_parent_sg(
                     child_sg_name, parent_sg_name)
             except Exception as e:
                 msg = ("Exception adding child sg %(child_sg)s to "
@@ -659,7 +679,11 @@ class VmaxAf:
         :returns: storagegroup_list
         """
         sg_list = []
-        vol = self.REST.get_volume(device_id)
+        try:
+            vol = self.CONN.get_volume(device_id)
+        except pyU4V_exception.VolumeBackendAPIException:
+            # try again
+            vol = self.CONN.get_volume(device_id)
         if vol and vol.get('storageGroupId'):
             sg_list = vol['storageGroupId']
         num_storage_groups = len(sg_list)
@@ -679,16 +703,16 @@ class VmaxAf:
         :param storagegroup_name: the storage group name
         :param move: flag to indicate if move should be used instead of remove
         """
-        masking_list = self.REST.get_masking_views_from_storage_group(
+        masking_list = self.CONN.get_masking_views_from_storage_group(
             storagegroup_name)
         if not masking_list:
             LOG.debug("No masking views associated with storage group "
                       "%(sg_name)s", {'sg_name': storagegroup_name})
 
             # Make sure volume hasn't been recently removed from the sg
-            if self.REST.is_volume_in_storagegroup(
+            if self.CONN.is_volume_in_storagegroup(
                     device_id, storagegroup_name):
-                num_vol_in_sg = self.REST.get_num_vols_in_sg(storagegroup_name)
+                num_vol_in_sg = self.CONN.get_num_vols_in_sg(storagegroup_name)
                 LOG.debug("There are %(num_vol)d volumes in the "
                           "storage group %(sg_name)s.",
                           {'num_vol': num_vol_in_sg,
@@ -717,10 +741,10 @@ class VmaxAf:
             parent_sg_name = self.get_parent_sg_from_child(storagegroup_name)
 
             # Make sure volume hasn't been recently removed from the sg
-            is_vol = self.REST.is_volume_in_storagegroup(
+            is_vol = self.CONN.is_volume_in_storagegroup(
                 device_id, storagegroup_name)
             if is_vol:
-                num_vol_in_sg = self.REST.get_num_vols_in_sg(
+                num_vol_in_sg = self.CONN.get_num_vols_in_sg(
                     storagegroup_name)
                 LOG.debug(
                     "There are %(num_vol)d volumes in the storage group "
@@ -759,14 +783,15 @@ class VmaxAf:
             self.add_volume_to_default_storage_group(
                 device_id, volume_name, group_conf, src_sg=storagegroup_name)
         else:
-            self.REST.remove_vol_from_sg(storagegroup_name, device_id)
+            self.CONN.remove_vol_from_storagegroup(
+                storagegroup_name, device_id)
 
         LOG.debug(
             "Volume %(volume_name)s successfully moved/ removed from "
             "storage group %(sg)s.",
             {'volume_name': volume_name, 'sg': storagegroup_name})
 
-        num_vol_in_sg = self.REST.get_num_vols_in_sg(
+        num_vol_in_sg = self.CONN.get_num_vols_in_sg(
             storagegroup_name)
         LOG.debug("There are %(num_vol)d volumes remaining in the storage "
                   "group %(sg_name)s.",
@@ -795,7 +820,7 @@ class VmaxAf:
         LOG.debug("Only one volume remains in storage group "
                   "%(sgname)s. Driver will attempt cleanup.",
                   {'sgname': storagegroup_name})
-        masking_view_list = self.REST.get_masking_views_from_storage_group(
+        masking_view_list = self.CONN.get_masking_views_from_storage_group(
             storagegroup_name)
         if not bool(masking_view_list):
             status = self._last_vol_no_masking_views(
@@ -827,10 +852,10 @@ class VmaxAf:
                     device_id, volume_name, group_conf,
                     src_sg=storagegroup_name)
             # Delete the storage group.
-            self.REST.delete_storage_group(storagegroup_name)
+            self.CONN.delete_storage_group(storagegroup_name)
             status = True
         else:
-            num_vols_parent = self.REST.get_num_vols_in_sg(parent_sg)
+            num_vols_parent = self.CONN.get_num_vols_in_sg(parent_sg)
             if num_vols_parent == 1:
                 self._delete_cascaded_storage_groups(
                     storagegroup_name, parent_sg, device_id, move, group_conf)
@@ -857,15 +882,15 @@ class VmaxAf:
             self.add_volume_to_default_storage_group(
                 device_id, volume_name, group_conf, src_sg=storagegroup_name)
         else:
-            self.REST.remove_vol_from_sg(storagegroup_name, device_id)
+            self.CONN.remove_vol_from_storagegroup(storagegroup_name, device_id)
 
         LOG.debug("Remove the last volume %(volumeName)s completed "
                   "successfully.", {'volumeName': volume_name})
         if parent_sg_name:
-            self.REST.remove_child_sg_from_parent_sg(
+            self.CONN.remove_child_sg_from_parent_sg(
                 storagegroup_name, parent_sg_name)
 
-        self.REST.delete_storage_group(storagegroup_name)
+        self.CONN.delete_storage_group(storagegroup_name)
 
     def _delete_cascaded_storage_groups(self, child_sg_name, parent_sg_name,
                                         device_id, move, group_conf):
@@ -880,11 +905,11 @@ class VmaxAf:
             self.add_volume_to_default_storage_group(
                 device_id, "", group_conf, src_sg=child_sg_name)
         if child_sg_name != parent_sg_name:
-            self.REST.delete_sg(parent_sg_name)
+            self.CONN.delete_storagegroup(parent_sg_name)
             LOG.debug("Storage Group %(storagegroup_name)s "
                       "successfully deleted.",
                       {'storagegroup_name': parent_sg_name})
-        self.REST.delete_sg(child_sg_name)
+        self.CONN.delete_storagegroup(child_sg_name)
 
         LOG.debug("Storage Group %(storagegroup_name)s successfully deleted.",
                   {'storagegroup_name': child_sg_name})
@@ -902,7 +927,7 @@ class VmaxAf:
             group_conf.safe_get(SRP), group_conf.safe_get(SLO),
             group_conf.safe_get(WORKLOAD))
         if src_sg is not None:
-            self.REST.move_volume_between_storage_groups(
+            self.CONN.move_volume_between_storage_groups(
                 device_id, src_sg, storagegroup_name, force=True)
         else:
             self._check_adding_volume_to_storage_group(
@@ -915,7 +940,7 @@ class VmaxAf:
         :returns: the parent storage group name, or None
         """
         parent_sg_name = None
-        storagegroup = self.REST.get_storage_group(storagegroup_name)
+        storagegroup = self.CONN.get_storage_group(storagegroup_name)
         if storagegroup and storagegroup.get('parent_storage_group'):
             parent_sg_name = storagegroup['parent_storage_group'][0]
         return parent_sg_name
@@ -963,7 +988,7 @@ class VmaxAf:
         """
         host = platform.node()
 
-        initiator_group = self.REST.get_element_from_masking_view(
+        initiator_group = self.CONN.get_element_from_masking_view(
             masking_view, host=True)
         self._last_volume_delete_masking_view(masking_view)
         self._last_volume_delete_initiator_group(initiator_group, host)
@@ -987,11 +1012,11 @@ class VmaxAf:
 
             if initiator_group_name == default_ig_name:
                 masking_view_names = (
-                    self.REST.get_masking_views_by_host(
+                    self.CONN.get_masking_views_by_host(
                         initiator_group_name))
                 if not masking_view_names:
                     # Check initiator group hasn't been recently deleted
-                    ig_details = self.REST.get_initiator_group_from_initiator(
+                    ig_details = self.CONN.get_initiator_group_from_initiator(
                         initiator_group_name)
                     if ig_details:
                         LOG.debug(
@@ -999,7 +1024,7 @@ class VmaxAf:
                             "group - deleting the associated initiator "
                             "group %(initiator_group_name)s.",
                             {'initiator_group_name': initiator_group_name})
-                        self.REST.delete_host(initiator_group_name)
+                        self.CONN.delete_host(initiator_group_name)
                 else:
                     LOG.warning("Initiator group %(ig_name)s is associated "
                                 "with masking views and can't be deleted. "
@@ -1027,7 +1052,7 @@ class VmaxAf:
         LOG.debug("Last volume in the storage group, deleting masking view "
                   "%(masking_view_name)s.",
                   {'masking_view_name': masking_view})
-        self.REST.delete_masking_view(self.array, masking_view)
+        self.CONN.delete_masking_view(masking_view)
         LOG.debug("Masking view %(masking_view_name)s successfully deleted.",
                   {'masking_view_name': masking_view})
 
@@ -1037,10 +1062,10 @@ class VmaxAf:
         :param masking_view_name: the name of the masking view
         :returns: num_vols, parent_sg_name
         """
-        sg_name = self.REST.get_element_from_masking_view(
+        sg_name = self.CONN.get_element_from_masking_view(
             masking_view_name, storagegroup=True)
         parent_sg_name = self.get_parent_sg_from_child(sg_name)
-        num_vols = self.REST.get_num_vols_in_sg(parent_sg_name)
+        num_vols = self.CONN.get_num_vols_in_sg(parent_sg_name)
         return num_vols, parent_sg_name
 
     def _populate_masking_dict(self, volume, device_id, group_conf):
